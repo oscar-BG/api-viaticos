@@ -1,3 +1,151 @@
+# API Viáticos — Project Context
+
+> Este bloque debe colocarse **al inicio del `AGENTS.md` existente**. No eliminar ni modificar las `<laravel-boost-guidelines>` generadas por Laravel Boost que ya existen debajo.
+
+## Project Purpose
+
+`api-viaticos` es una API REST en Laravel para un MVP de gestión de viáticos.
+
+El flujo principal es:
+
+```text
+COLABORADOR
+  ↓
+crea solicitud de viáticos
+  ↓
+firma y envía
+  ↓
+FINANZAS revisa
+  ↓
+aprueba/rechaza
+  ↓
+si está APROBADA, el COLABORADOR puede crear 1..N comprobaciones
+  ↓
+agrega gastos y evidencias
+  ↓
+firma y envía comprobación
+  ↓
+FINANZAS revisa detalles
+  ↓
+aprueba / rechaza parcial / rechaza total
+```
+
+## Functional Roles
+
+Solo existen dos perfiles funcionales en el MVP:
+
+- `COLABORADOR`: crea y administra sus propias solicitudes/comprobaciones mientras el estado lo permita; firma los envíos.
+- `FINANZAS`: revisa, aprueba o rechaza solicitudes y comprobaciones; firma las aprobaciones.
+
+No crear otros roles o cadenas de aprobación salvo requerimiento explícito.
+
+## Non-Negotiable Domain Rules
+
+1. Toda comprobación debe pertenecer a una solicitud de viáticos previamente `APROBADA`.
+2. No existe comprobación/reembolso sin solicitud previa en este MVP.
+3. Una solicitud puede tener múltiples comprobaciones (`1:N`).
+4. Finanzas autoriza solicitudes y comprobaciones.
+5. Los cambios de estado deben ejecutarse mediante casos de uso explícitos, no mediante actualización libre de `status`.
+6. Solicitudes y comprobaciones requieren firma electrónica interna al enviar y aprobar.
+7. El backend calcula y controla totales, límites y excedentes; no aceptar esos valores del cliente como fuente de verdad.
+8. Límites diarios se acumulan a nivel de **solicitud**, incluso cuando los gastos están repartidos en varias comprobaciones.
+9. `TRANSPORTE` y `EXTRAORDINARIO` no tienen límite y no distinguen Factura/Vale Azul.
+10. OCR, CFDI, n8n, PDF y notificaciones son integraciones desacopladas y no deben llamarse directamente desde Controllers.
+
+## Mandatory Documentation Reading Order
+
+Antes de implementar una tarea del dominio de viáticos:
+
+1. Leer `MVP_API_VIATICOS_LARAVEL.md`.
+2. Leer `docs/viaticos/00-fundamentos.md`.
+3. Leer solamente la etapa que corresponda al trabajo solicitado:
+   - `docs/viaticos/01-solicitudes-viaticos.md`
+   - `docs/viaticos/02-comprobaciones-viaticos.md`
+   - `docs/viaticos/03-ocr-workflows.md`
+4. Respetar además todas las reglas de Laravel Boost que aparecen más abajo en este archivo.
+
+No adelantar la implementación de una etapa posterior salvo que el usuario lo solicite expresamente.
+
+## Implementation Order
+
+### Stage 0 — Foundations
+
+Auth, roles, niveles jerárquicos, conceptos, tipos de comprobante y límites.
+
+### Stage 1 — Travel Requests
+
+Implementar el flujo completo de solicitudes, incluyendo firma, auditoría, aprobación/rechazo y tests.
+
+**No implementar comprobaciones si la tarea actual está limitada a esta etapa.**
+
+### Stage 2 — Expense Reports
+
+Implementar comprobaciones, detalles, evidencias, límites, excedentes, revisión parcial/total, firmas y auditoría.
+
+### Stage 3 — Integrations
+
+OCR, CFDI/XML, n8n, PDF, notificaciones y almacenamiento externo. Solo después del núcleo estable.
+
+## Laravel Architecture Expectations
+
+Preferir:
+
+```text
+Route
+  -> Controller
+  -> FormRequest
+  -> Policy
+  -> Action / Service
+  -> Eloquent + Transaction
+  -> Domain Event
+  -> Listener / Job
+```
+
+- Controllers delgados.
+- Form Requests para validación HTTP.
+- Policies para autorización por recurso.
+- API Resources para responses.
+- Actions/Services pequeños por caso de uso; evitar un `ViaticosService` monolítico.
+- PHP Enums para estados y roles.
+- `DB::transaction()` para transiciones y operaciones monetarias críticas.
+- `lockForUpdate()` cuando exista riesgo de concurrencia sobre monto autorizado/acumulados.
+- Events/Listeners/Jobs para efectos secundarios e integraciones.
+- Laravel Storage para evidencias privadas.
+- Pest para reglas funcionales críticas.
+
+## Scope Guardrails
+
+No implementar sin solicitud expresa:
+
+- frontend completo;
+- multiempresa/multisucursal;
+- reembolso sin solicitud previa;
+- aprobación por jefe inmediato;
+- perfiles separados de Contabilidad/Contraloría;
+- SAP/ERP;
+- validación SAT en línea;
+- OCR productivo;
+- n8n productivo;
+- WhatsApp;
+- e.firma/X.509;
+- XLSX;
+- PDF firmado criptográficamente.
+
+## Definition of Done for an Agent Change
+
+Antes de terminar una etapa/cambio:
+
+1. Ejecutar los tests específicos afectados.
+2. Agregar/actualizar pruebas Pest de reglas críticas.
+3. Ejecutar Pint según las reglas de Boost cuando haya cambios PHP.
+4. Confirmar que no se implementaron funcionalidades de etapas posteriores.
+5. Resumir archivos creados/modificados y decisiones relevantes.
+
+---
+
+> A partir de aquí deben conservarse sin cambios las reglas existentes de Laravel Boost (`<laravel-boost-guidelines> ... </laravel-boost-guidelines>`).
+
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
